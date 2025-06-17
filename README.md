@@ -63,3 +63,7 @@ This application is configured to work with Docker Compose. The database connect
 - Database Name: tenant_db
 - Username: yu71
 - Password: 53cret
+
+## Reference
+
+Based on this [article](https://towardsdev.com/multi-tenant-architecture-using-springboot-and-postgresql-d3d800e44ab0)
