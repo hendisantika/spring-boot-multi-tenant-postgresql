@@ -1,5 +1,7 @@
 # Spring Boot Multitenant Demo API
 
+[![Java CI with Gradle](https://github.com/hendisantika/spring-boot-multi-tenant-postgresql/actions/workflows/gradle.yml/badge.svg)](https://github.com/hendisantika/spring-boot-multi-tenant-postgresql/actions/workflows/gradle.yml)
+
 This document provides examples of how to interact with the Multitenant Demo API using cURL commands.
 
 ## Prerequisites
