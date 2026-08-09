@@ -79,7 +79,8 @@ class CustomerControllerTest {
 
         mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.page.totalElements", is(1)));
     }
 
     @Test
@@ -89,12 +90,56 @@ class CustomerControllerTest {
 
         mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_B))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.content", hasSize(0)))
+                .andExpect(jsonPath("$.page.totalElements", is(0)));
 
         // The unique index on email is per schema, so the address is free here.
         mockMvc.perform(post("/customers").header(TENANT_HEADER, TENANT_B)
                         .contentType(MediaType.APPLICATION_JSON).content(ALICE))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void pagesAndSortsTheList() throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/customers").header(TENANT_HEADER, TENANT_A)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Customer %02d\",\"email\":\"c%d@example.com\"}".formatted(i, i)))
+                    .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("page", "0").param("size", "2").param("sort", "name,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[0].name", is("Customer 01")))
+                .andExpect(jsonPath("$.page.size", is(2)))
+                .andExpect(jsonPath("$.page.number", is(0)))
+                .andExpect(jsonPath("$.page.totalElements", is(5)))
+                .andExpect(jsonPath("$.page.totalPages", is(3)));
+
+        // Last page holds the remainder.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("page", "2").param("size", "2").param("sort", "name,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("Customer 05")));
+
+        // Descending sort flips the first row.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("size", "2").param("sort", "name,desc"))
+                .andExpect(jsonPath("$.content[0].name", is("Customer 05")));
+    }
+
+    @Test
+    void capsAnOversizedPageRequest() throws Exception {
+        mockMvc.perform(post("/customers").header(TENANT_HEADER, TENANT_A)
+                .contentType(MediaType.APPLICATION_JSON).content(ALICE)).andExpect(status().isCreated());
+
+        // spring.data.web.pageable.max-page-size is 100, so a huge size is clamped.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("size", "100000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.size", is(100)));
     }
 
     @Test

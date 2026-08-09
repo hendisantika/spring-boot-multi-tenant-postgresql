@@ -5,10 +5,10 @@ import id.my.hendisantika.multitenantdemo5.entity.Customer;
 import id.my.hendisantika.multitenantdemo5.repository.CustomerRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -32,8 +32,8 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
 
     @Transactional(readOnly = true)
-    public List<Customer> findAll() {
-        return customerRepository.findAll();
+    public Page<Customer> findAll(Pageable pageable) {
+        return customerRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)

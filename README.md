@@ -49,9 +49,10 @@ curl -X POST "http://localhost:8080/customers" \
   -H "X-TenantID: tenant_a" \
   -d '{"name":"Alice","email":"alice@example.com"}'
 
-# list / read one
-curl "http://localhost:8080/customers"      -H "X-TenantID: tenant_a"
-curl "http://localhost:8080/customers/1"    -H "X-TenantID: tenant_a"
+# list (paged) / read one
+curl "http://localhost:8080/customers"                            -H "X-TenantID: tenant_a"
+curl "http://localhost:8080/customers?page=1&size=50&sort=name,asc" -H "X-TenantID: tenant_a"
+curl "http://localhost:8080/customers/1"                          -H "X-TenantID: tenant_a"
 
 # update
 curl -X PUT "http://localhost:8080/customers/1" \
@@ -66,10 +67,30 @@ curl -X DELETE "http://localhost:8080/customers/1" -H "X-TenantID: tenant_a"
 | Method | Path              | Success | Errors                                    |
 |--------|-------------------|---------|-------------------------------------------|
 | POST   | `/customers`      | 201     | 400 invalid body, 409 duplicate email     |
-| GET    | `/customers`      | 200     | -                                         |
+| GET    | `/customers`      | 200     | paged, see below                          |
 | GET    | `/customers/{id}` | 200     | 404 unknown id                            |
 | PUT    | `/customers/{id}` | 200     | 400 invalid body, 404 unknown id          |
 | DELETE | `/customers/{id}` | 204     | 404 unknown id                            |
+
+### Paging the list
+
+`GET /customers` is paged, so a tenant with a large table is never dumped in one
+response. It takes the usual Spring Data parameters:
+
+| Parameter | Default | Notes                                          |
+|-----------|---------|------------------------------------------------|
+| `page`    | `0`     | zero-indexed                                    |
+| `size`    | `20`    | clamped to 100                                  |
+| `sort`    | `id`    | `field,asc` / `field,desc`, repeatable          |
+
+```json
+{
+  "content": [
+    { "id": 1, "name": "Alice", "email": "alice@example.com", "createdAt": "..." }
+  ],
+  "page": { "size": 20, "number": 0, "totalElements": 1, "totalPages": 1 }
+}
+```
 
 Rows never cross tenants: the unique index on `email` lives in each schema, so
 the same address can exist once per tenant.
