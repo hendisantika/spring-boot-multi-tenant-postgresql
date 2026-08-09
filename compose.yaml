@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: yu71
       POSTGRES_PASSWORD: 53cret
     ports:
-      - "5433:5432"
+      # Host port is overridable because 5432/5433 are commonly already taken.
+      - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       # Postgres 18 images use PGDATA=/var/lib/postgresql/18/docker, so the
       # persistent mount point is /var/lib/postgresql (not .../data).
@@ -26,7 +27,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT:-5052}:80"
     depends_on:
       postgres17:
         condition: service_healthy

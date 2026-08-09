@@ -59,10 +59,25 @@ curl -X POST "http://localhost:8080/tenants/create?tenantName=company-1"
 This application is configured to work with Docker Compose. The database connection details are:
 
 - Database: PostgreSQL
-- Port: 5433
+- Port: 5434 (host) -> 5432 (container)
 - Database Name: tenant_db
 - Username: yu71
 - Password: 53cret
+
+pgAdmin is published on http://localhost:5052 (admin@pgadmin.com / admin).
+
+If those host ports clash with something else on your machine, override them without
+editing any files:
+
+```bash
+# start the stack on different host ports
+POSTGRES_PORT=15432 PGADMIN_PORT=15050 docker compose up -d
+
+# and point the app at the same port
+DB_PORT=15432 ./gradlew bootRun
+```
+
+`DB_HOST`, `DB_PORT` and `DB_NAME` all fall back to the defaults above when unset.
 
 ## Reference
 
