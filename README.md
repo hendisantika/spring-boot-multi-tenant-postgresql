@@ -90,6 +90,13 @@ whole table, and it combines freely with `page`, `size` and `sort`. A blank `q`
 is treated as no filter. `%` and `_` are matched literally, so searching for
 `50%` finds that text instead of every row.
 
+Search is backed by `pg_trgm` GIN indexes on `LOWER(name)` and `LOWER(email)`,
+added per tenant schema by `V2`. A leading-wildcard `LIKE` cannot use a B-tree,
+so without them every search is a sequential scan. Two caveats: trigram indexes
+need a term of **at least 3 characters** (shorter terms fall back to a scan), and
+on a small table the planner will still choose a scan because it is genuinely
+cheaper - the index starts winning in the hundreds of thousands of rows.
+
 Sortable fields are `id`, `name`, `email` and `createdAt`. Anything else gives
 `400` naming the offending field, rather than a `500` from the query builder.
 Note that a malformed direction (`?sort=name,sideways`) is read by Spring Data
