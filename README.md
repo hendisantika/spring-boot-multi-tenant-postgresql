@@ -37,6 +37,43 @@ Example:
 Tenant company1 created successfully
 ```
 
+## Customer Management
+
+CRUD over the `customers` table of one tenant. The tenant comes from the
+`X-TenantID` header; without it the request lands on the `public` schema.
+
+```bash
+# create
+curl -X POST "http://localhost:8080/customers" \
+  -H "Content-Type: application/json" \
+  -H "X-TenantID: tenant_a" \
+  -d '{"name":"Alice","email":"alice@example.com"}'
+
+# list / read one
+curl "http://localhost:8080/customers"      -H "X-TenantID: tenant_a"
+curl "http://localhost:8080/customers/1"    -H "X-TenantID: tenant_a"
+
+# update
+curl -X PUT "http://localhost:8080/customers/1" \
+  -H "Content-Type: application/json" \
+  -H "X-TenantID: tenant_a" \
+  -d '{"name":"Alice Updated","email":"alice.new@example.com"}'
+
+# delete
+curl -X DELETE "http://localhost:8080/customers/1" -H "X-TenantID: tenant_a"
+```
+
+| Method | Path              | Success | Errors                                    |
+|--------|-------------------|---------|-------------------------------------------|
+| POST   | `/customers`      | 201     | 400 invalid body, 409 duplicate email     |
+| GET    | `/customers`      | 200     | -                                         |
+| GET    | `/customers/{id}` | 200     | 404 unknown id                            |
+| PUT    | `/customers/{id}` | 200     | 400 invalid body, 404 unknown id          |
+| DELETE | `/customers/{id}` | 204     | 404 unknown id                            |
+
+Rows never cross tenants: the unique index on `email` lives in each schema, so
+the same address can exist once per tenant.
+
 ## Notes
 
 - The tenant name must contain only alphanumeric characters and underscores.
