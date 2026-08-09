@@ -2,9 +2,12 @@ package id.my.hendisantika.multitenantdemo5.controller;
 
 import id.my.hendisantika.multitenantdemo5.service.TenantService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -29,5 +32,11 @@ public class TenantController {
     public String createTenant(@RequestParam("tenantName") String tenantName) {
         tenantService.createTenant(tenantName);
         return "Tenant " + tenantName + " created successfully";
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleInvalidTenantName(IllegalArgumentException ex) {
+        return ex.getMessage();
     }
 }

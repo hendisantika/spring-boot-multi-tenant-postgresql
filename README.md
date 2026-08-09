@@ -44,8 +44,8 @@ Tenant company1 created successfully
 
 ## Error Handling
 
-If you provide an invalid tenant name (containing characters other than alphanumeric and underscores), you'll receive an
-error response.
+If you provide an invalid tenant name (containing characters other than alphanumeric and underscores), the request is
+rejected with `400 Bad Request`.
 
 Example of an invalid request:
 
