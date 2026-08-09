@@ -185,6 +185,41 @@ DB_PORT=15432 ./gradlew bootRun
 
 `DB_HOST`, `DB_PORT` and `DB_NAME` all fall back to the defaults above when unset.
 
+## Running the App in Docker
+
+The app has its own image and a healthcheck. It sits behind a compose profile
+because running the app locally starts this compose file itself, and an
+always-on app service would boot a second copy and collide on port 8080.
+
+```bash
+# whole stack, app included
+docker compose --profile app up -d --build
+
+# just the dependencies, which is what ./gradlew bootRun expects
+docker compose up -d
+```
+
+`APP_PORT` overrides the published port (default 8080).
+
+### Healthcheck
+
+The image declares a `HEALTHCHECK` that polls `/actuator/health`, so it applies
+whether the container is started by compose or by `docker run`:
+
+```bash
+docker inspect -f '{{.State.Health.Status}}' multitenant-app
+```
+
+It probes Actuator rather than the TCP port, so it reports the app as unhealthy
+when the database is unreachable, not merely when the JVM has died. Losing
+Postgres flips the container to `unhealthy` and getting it back flips it to
+`healthy` again. `start-period` allows 60s for JVM startup and the per-tenant
+Flyway migrations.
+
+Only the `health` endpoint is exposed and it reports status without details, so
+the probe is safe to leave unauthenticated; anything else under `/actuator`
+returns 404.
+
 ## Reference
 
 Based on this [article](https://towardsdev.com/multi-tenant-architecture-using-springboot-and-postgresql-d3d800e44ab0)

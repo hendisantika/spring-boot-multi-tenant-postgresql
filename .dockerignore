@@ -1,0 +1,7 @@
+# The Postgres bind mount is large and must never enter the build context.
+postgres*_data/
+.git/
+.gradle/
+build/
+.idea/
+*.iml

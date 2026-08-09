@@ -20,6 +20,27 @@ services:
       timeout: 5s
       retries: 5
 
+  # Behind a profile on purpose. Running the app locally starts this compose file
+  # (spring.docker.compose.*), so an always-on app service would boot a second
+  # copy of the app and collide on 8080. Start it with:
+  #   docker compose --profile app up -d --build
+  app:
+    profiles: [ "app" ]
+    build:
+      context: .
+    container_name: multitenant-app
+    environment:
+      # Inside the network Postgres is reached on its container port, not the
+      # published one.
+      DB_HOST: postgres18
+      DB_PORT: 5432
+      DB_NAME: tenant_db
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres18:
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:9.4.0
     container_name: pgadmin4
