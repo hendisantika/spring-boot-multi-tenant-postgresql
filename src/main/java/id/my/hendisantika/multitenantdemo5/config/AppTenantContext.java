@@ -54,7 +54,10 @@ public class AppTenantContext implements Filter {
         if (tenant != null) {
             setCurrentTenant(tenant);
         }
-        chain.doFilter(request, response);
-        clear();
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            clear();
+        }
     }
 }
