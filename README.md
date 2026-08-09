@@ -44,6 +44,33 @@ Tenant company1 created successfully
 - The application uses schema-based multitenancy, where each tenant's data is isolated in its own schema within the same
   database.
 
+## Database Migrations
+
+Schema changes are managed by Flyway. Because every tenant owns a schema, the
+migrations in `src/main/resources/db/migration` are applied **once per tenant
+schema** rather than once per database, so each schema carries its own
+`flyway_schema_history` table.
+
+Migrations run in two places:
+
+- at startup, against every existing schema (including `public`, which backs the
+  default tenant)
+- immediately after `POST /tenants/create`, so a brand new tenant starts at V1
+
+Spring Boot's built-in Flyway auto-configuration only ever targets one schema, so
+it is disabled (`spring.flyway.enabled=false`) and `TenantSchemaMigrator` drives
+the migrations instead.
+
+### Naming convention
+
+```
+Vx_DDMMYYYY_HHMM__DESCRIPTION.sql
+```
+
+For example `V1_09082026_0836__create_customers_table.sql`, which Flyway reads as
+version `1.09082026.0836`. Write table names unqualified - Flyway sets the target
+schema before the script runs.
+
 ## Error Handling
 
 If you provide an invalid tenant name (containing characters other than alphanumeric and underscores), the request is

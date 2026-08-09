@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class TenantService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final TenantSchemaMigrator tenantSchemaMigrator;
 
     public void createTenant(String tenantName) {
         // Validate tenant name: allow only alphanumeric characters and underscores.
@@ -28,5 +29,7 @@ public class TenantService {
         }
         String sql = "CREATE SCHEMA IF NOT EXISTS " + tenantName;
         jdbcTemplate.execute(sql);
+        // A tenant without the tenant tables is useless, so migrate before returning.
+        tenantSchemaMigrator.migrate(tenantName);
     }
 }
