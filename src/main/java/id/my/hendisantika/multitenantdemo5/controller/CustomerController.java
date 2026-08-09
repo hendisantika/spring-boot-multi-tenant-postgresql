@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,11 +62,16 @@ public class CustomerController {
      * Paged so a tenant with a large table cannot be dumped in one response.
      * Accepts the usual page/size/sort parameters, e.g. ?page=1&size=50&sort=name,asc.
      * spring.data.web.pageable.max-page-size caps how large size may go.
+     * <p>
+     * An optional {@code q} narrows the page to customers whose name or email
+     * contains it, case-insensitively. It filters before paging, so totalElements
+     * reflects the matches rather than the whole table.
      */
     @GetMapping
-    public PagedModel<CustomerResponse> list(@PageableDefault(sort = "id") Pageable pageable) {
+    public PagedModel<CustomerResponse> list(@RequestParam(name = "q", required = false) String q,
+                                             @PageableDefault(sort = "id") Pageable pageable) {
         validateSort(pageable.getSort());
-        return new PagedModel<>(customerService.findAll(pageable).map(CustomerResponse::from));
+        return new PagedModel<>(customerService.findAll(q, pageable).map(CustomerResponse::from));
     }
 
     private static void validateSort(Sort sort) {

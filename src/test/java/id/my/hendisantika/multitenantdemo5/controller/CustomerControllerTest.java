@@ -133,6 +133,104 @@ class CustomerControllerTest {
                 .andExpect(jsonPath("$.content[0].name", is("Customer 05")));
     }
 
+    private void create(String tenant, String name, String email) throws Exception {
+        String body = email == null
+                ? "{\"name\":\"%s\"}".formatted(name)
+                : "{\"name\":\"%s\",\"email\":\"%s\"}".formatted(name, email);
+        mockMvc.perform(post("/customers").header(TENANT_HEADER, tenant)
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated());
+    }
+
+    private void seedSearchFixtures() throws Exception {
+        create(TENANT_A, "Alice Anderson", "alice@example.com");
+        create(TENANT_A, "Bob Brown", "bob@test.org");
+        create(TENANT_A, "50% Off Ltd", "promo@deals.com");
+        create(TENANT_A, "Under_score Co", "under@deals.com");
+        create(TENANT_A, "NoEmail Person", null);
+    }
+
+    @Test
+    void searchesOnNameAndOnEmail() throws Exception {
+        seedSearchFixtures();
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "ali"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("Alice Anderson")));
+
+        // Matches the email even though the name has nothing in common with it.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "test.org"))
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("Bob Brown")));
+
+        // A null email must not stop the name from matching.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "NoEmail"))
+                .andExpect(jsonPath("$.content", hasSize(1)));
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "zzz"))
+                .andExpect(jsonPath("$.content", hasSize(0)))
+                .andExpect(jsonPath("$.page.totalElements", is(0)));
+    }
+
+    @Test
+    void searchIsCaseInsensitive() throws Exception {
+        seedSearchFixtures();
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "ALICE"))
+                .andExpect(jsonPath("$.content", hasSize(1)));
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "aLiCe"))
+                .andExpect(jsonPath("$.content", hasSize(1)));
+    }
+
+    @Test
+    void treatsLikeWildcardsAsLiteralText() throws Exception {
+        seedSearchFixtures();
+
+        // Unescaped, "%" and "_" would match every row instead of one.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "%"))
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("50% Off Ltd")));
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "_"))
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("Under_score Co")));
+    }
+
+    @Test
+    void blankSearchIsNoFilter() throws Exception {
+        seedSearchFixtures();
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A).param("q", "   "))
+                .andExpect(jsonPath("$.page.totalElements", is(5)));
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A))
+                .andExpect(jsonPath("$.page.totalElements", is(5)));
+    }
+
+    @Test
+    void searchFiltersBeforePagingAndSorting() throws Exception {
+        seedSearchFixtures();
+
+        // "deals" matches two rows; totalElements must reflect the match, not the table.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("q", "deals").param("size", "1").param("sort", "name,asc"))
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name", is("50% Off Ltd")))
+                .andExpect(jsonPath("$.page.totalElements", is(2)))
+                .andExpect(jsonPath("$.page.totalPages", is(2)));
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("q", "deals").param("size", "1").param("page", "1").param("sort", "name,asc"))
+                .andExpect(jsonPath("$.content[0].name", is("Under_score Co")));
+    }
+
+    @Test
+    void searchStaysWithinTheTenant() throws Exception {
+        create(TENANT_A, "Alice Anderson", "alice@example.com");
+
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_B).param("q", "alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
+    }
+
     @Test
     void rejectsAnUnknownSortField() throws Exception {
         mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)

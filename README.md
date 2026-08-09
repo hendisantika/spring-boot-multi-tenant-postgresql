@@ -49,10 +49,11 @@ curl -X POST "http://localhost:8080/customers" \
   -H "X-TenantID: tenant_a" \
   -d '{"name":"Alice","email":"alice@example.com"}'
 
-# list (paged) / read one
-curl "http://localhost:8080/customers"                            -H "X-TenantID: tenant_a"
+# list (paged) / search / read one
+curl "http://localhost:8080/customers"                              -H "X-TenantID: tenant_a"
 curl "http://localhost:8080/customers?page=1&size=50&sort=name,asc" -H "X-TenantID: tenant_a"
-curl "http://localhost:8080/customers/1"                          -H "X-TenantID: tenant_a"
+curl "http://localhost:8080/customers?q=alice"                      -H "X-TenantID: tenant_a"
+curl "http://localhost:8080/customers/1"                            -H "X-TenantID: tenant_a"
 
 # update
 curl -X PUT "http://localhost:8080/customers/1" \
@@ -77,11 +78,17 @@ curl -X DELETE "http://localhost:8080/customers/1" -H "X-TenantID: tenant_a"
 `GET /customers` is paged, so a tenant with a large table is never dumped in one
 response. It takes the usual Spring Data parameters:
 
-| Parameter | Default | Notes                                          |
-|-----------|---------|------------------------------------------------|
-| `page`    | `0`     | zero-indexed                                    |
-| `size`    | `20`    | clamped to 100                                  |
-| `sort`    | `id`    | `field,asc` / `field,desc`, repeatable          |
+| Parameter | Default | Notes                                            |
+|-----------|---------|--------------------------------------------------|
+| `q`       | none    | substring of name or email, case-insensitive      |
+| `page`    | `0`     | zero-indexed                                      |
+| `size`    | `20`    | clamped to 100                                    |
+| `sort`    | `id`    | `field,asc` / `field,desc`, repeatable            |
+
+`q` filters before paging, so `totalElements` counts the matches rather than the
+whole table, and it combines freely with `page`, `size` and `sort`. A blank `q`
+is treated as no filter. `%` and `_` are matched literally, so searching for
+`50%` finds that text instead of every row.
 
 Sortable fields are `id`, `name`, `email` and `createdAt`. Anything else gives
 `400` naming the offending field, rather than a `500` from the query builder.

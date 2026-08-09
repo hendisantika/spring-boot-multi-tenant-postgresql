@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 /**
  * Created by IntelliJ IDEA.
  * Project : multitenant-demo5
@@ -31,9 +33,28 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
 
+    /**
+     * Lists a tenant's customers, optionally narrowed to those whose name or email
+     * contains {@code search}. A blank term is treated as no filter at all.
+     */
     @Transactional(readOnly = true)
-    public Page<Customer> findAll(Pageable pageable) {
-        return customerRepository.findAll(pageable);
+    public Page<Customer> findAll(String search, Pageable pageable) {
+        if (search == null || search.isBlank()) {
+            return customerRepository.findAll(pageable);
+        }
+        return customerRepository.search(toLikePattern(search.trim()), pageable);
+    }
+
+    /**
+     * Lower-cases the term and neutralises the LIKE wildcards, so searching for
+     * "50%" looks for that text rather than matching every row.
+     */
+    private static String toLikePattern(String term) {
+        String escaped = term.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     @Transactional(readOnly = true)
