@@ -1,6 +1,6 @@
 services:
   postgres17:
-    image: postgres:17-alpine3.22
+    image: postgres:18.4-alpine3.24
     container_name: postgres17
     environment:
       POSTGRES_DB: tenant_db
@@ -8,13 +8,13 @@ services:
       POSTGRES_PASSWORD: 53cret
     ports:
       - "5433:5432"
-    expose:
-      - "5433"
     volumes:
-      - ./postgres17_data:/var/lib/postgresql/data
+      # Postgres 18 images use PGDATA=/var/lib/postgresql/18/docker, so the
+      # persistent mount point is /var/lib/postgresql (not .../data).
+      - ./postgres17_data:/var/lib/postgresql
       - ./sql:/docker-entrypoint-initdb.d
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U yu71 -d tenant_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +28,5 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - postgres17
-
-volumes:
-  postgres_data:
+      postgres17:
+        condition: service_healthy
