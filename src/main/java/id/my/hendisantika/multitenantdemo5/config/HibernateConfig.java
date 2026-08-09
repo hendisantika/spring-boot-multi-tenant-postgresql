@@ -2,16 +2,9 @@ package id.my.hendisantika.multitenantdemo5.config;
 
 import org.hibernate.cfg.Environment;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.orm.jpa.JpaVendorAdapter;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
-
-import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Created by IntelliJ IDEA.
@@ -27,37 +20,26 @@ import java.util.Map;
 @Configuration
 public class HibernateConfig {
 
-    private final JpaProperties jpaProperties;
-
-    public HibernateConfig(JpaProperties jpaProperties) {
-        this.jpaProperties = jpaProperties;
-    }
-
     @Bean
-    public JpaVendorAdapter jpaVendorAdapter() {
-        return new HibernateJpaVendorAdapter();
-    }
-
-    @Bean
-    public CurrentTenantIdentifierResolver currentTenantIdentifierResolver() {
+    public CurrentTenantIdentifierResolver<String> currentTenantIdentifierResolver() {
         return new CurrentTenantIdentifierResolverImpl();
     }
 
+    /**
+     * Hands the multi-tenancy SPI implementations to the auto-configured
+     * EntityManagerFactory. Declaring our own LocalContainerEntityManagerFactoryBean
+     * instead would bypass Boot's Hibernate setup, losing the dialect, ddl-auto and
+     * naming strategies configured in application.properties. Hibernate switches to
+     * schema-per-tenant on its own once a MultiTenantConnectionProvider is present.
+     */
     @Bean
-    public LocalContainerEntityManagerFactoryBean entityManagerFactory(
-            DataSource dataSource,
+    public HibernatePropertiesCustomizer multiTenancyCustomizer(
             MultiTenantConnectionProviderImpl multiTenantConnectionProvider,
-            CurrentTenantIdentifierResolver currentTenantIdentifierResolver) {
+            CurrentTenantIdentifierResolver<String> currentTenantIdentifierResolver) {
 
-        Map<String, Object> jpaPropertiesMap = new HashMap<>(jpaProperties.getProperties());
-        jpaPropertiesMap.put(Environment.MULTI_TENANT_CONNECTION_PROVIDER, multiTenantConnectionProvider);
-        jpaPropertiesMap.put(Environment.MULTI_TENANT_IDENTIFIER_RESOLVER, currentTenantIdentifierResolver);
-
-        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
-        em.setDataSource(dataSource);
-        em.setPackagesToScan("com.example.multitenancy");
-        em.setJpaVendorAdapter(jpaVendorAdapter());
-        em.setJpaPropertyMap(jpaPropertiesMap);
-        return em;
+        return properties -> {
+            properties.put(Environment.MULTI_TENANT_CONNECTION_PROVIDER, multiTenantConnectionProvider);
+            properties.put(Environment.MULTI_TENANT_IDENTIFIER_RESOLVER, currentTenantIdentifierResolver);
+        };
     }
 }
