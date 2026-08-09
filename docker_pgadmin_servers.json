@@ -6,7 +6,7 @@
       "Port": 5432,
       "Username": "yu71",
       "Password": "53cret",
-      "Host": "postgres17",
+      "Host": "postgres18",
       "SSLMode": "prefer",
       "MaintenanceDB": "tenant_db",
       "PassFile": "/tmp/pgpassfile"

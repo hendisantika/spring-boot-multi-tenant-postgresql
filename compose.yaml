@@ -1,7 +1,7 @@
 services:
-  postgres17:
+  postgres18:
     image: postgres:18.4-alpine3.24
-    container_name: postgres17
+    container_name: postgres18
     environment:
       POSTGRES_DB: tenant_db
       POSTGRES_USER: yu71
@@ -12,7 +12,7 @@ services:
     volumes:
       # Postgres 18 images use PGDATA=/var/lib/postgresql/18/docker, so the
       # persistent mount point is /var/lib/postgresql (not .../data).
-      - ./postgres17_data:/var/lib/postgresql
+      - ./postgres18_data:/var/lib/postgresql
       - ./sql:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U yu71 -d tenant_db" ]
@@ -29,5 +29,5 @@ services:
     ports:
       - "${PGADMIN_PORT:-5052}:80"
     depends_on:
-      postgres17:
+      postgres18:
         condition: service_healthy
