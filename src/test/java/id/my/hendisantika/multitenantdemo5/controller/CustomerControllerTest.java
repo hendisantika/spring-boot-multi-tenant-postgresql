@@ -16,12 +16,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -129,6 +131,40 @@ class CustomerControllerTest {
         mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
                         .param("size", "2").param("sort", "name,desc"))
                 .andExpect(jsonPath("$.content[0].name", is("Customer 05")));
+    }
+
+    @Test
+    void rejectsAnUnknownSortField() throws Exception {
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("sort", "nonexistent,asc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("nonexistent")));
+    }
+
+    @Test
+    void rejectsAMalformedSortDirection() throws Exception {
+        // Spring Data reads an unparseable direction as a second property, which
+        // would otherwise reach the repository and fail as a 500.
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("sort", "name,sideways"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("sideways")));
+    }
+
+    @Test
+    void rejectsAMultiSortWhereOneFieldIsUnknown() throws Exception {
+        mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                        .param("sort", "name,asc").param("sort", "bogus,desc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsEverySortableField() throws Exception {
+        for (String field : new String[]{"id", "name", "email", "createdAt"}) {
+            mockMvc.perform(get("/customers").header(TENANT_HEADER, TENANT_A)
+                            .param("sort", field + ",desc"))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test

@@ -7,7 +7,9 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -44,6 +48,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class CustomerController {
 
+    /**
+     * Sorting is restricted to real, safe-to-expose columns. Anything else would
+     * reach Spring Data as a property reference and blow up as a 500 rather than
+     * telling the caller what they got wrong.
+     */
+    private static final List<String> SORTABLE_FIELDS = List.of("id", "name", "email", "createdAt");
+
     private final CustomerService customerService;
 
     /**
@@ -53,7 +64,21 @@ public class CustomerController {
      */
     @GetMapping
     public PagedModel<CustomerResponse> list(@PageableDefault(sort = "id") Pageable pageable) {
+        validateSort(pageable.getSort());
         return new PagedModel<>(customerService.findAll(pageable).map(CustomerResponse::from));
+    }
+
+    private static void validateSort(Sort sort) {
+        List<String> unknown = sort.stream()
+                .map(Sort.Order::getProperty)
+                .filter(property -> !SORTABLE_FIELDS.contains(property))
+                .toList();
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Cannot sort by " + unknown + ". Sortable fields are " + SORTABLE_FIELDS
+                            + ". Note that a malformed direction is read as another field,"
+                            + " so use sort=field,asc or sort=field,desc.");
+        }
     }
 
     @GetMapping("/{id}")
@@ -79,6 +104,22 @@ public class CustomerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         customerService.delete(id);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleBadRequest(IllegalArgumentException ex) {
+        return ex.getMessage();
+    }
+
+    /**
+     * Backstop in case a property slips past the allow list above, so an unknown
+     * sort field can never surface as a 500.
+     */
+    @ExceptionHandler(PropertyReferenceException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleUnknownProperty(PropertyReferenceException ex) {
+        return ex.getMessage();
     }
 
     @ExceptionHandler(EntityNotFoundException.class)

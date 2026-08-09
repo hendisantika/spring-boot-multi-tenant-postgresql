@@ -83,6 +83,11 @@ response. It takes the usual Spring Data parameters:
 | `size`    | `20`    | clamped to 100                                  |
 | `sort`    | `id`    | `field,asc` / `field,desc`, repeatable          |
 
+Sortable fields are `id`, `name`, `email` and `createdAt`. Anything else gives
+`400` naming the offending field, rather than a `500` from the query builder.
+Note that a malformed direction (`?sort=name,sideways`) is read by Spring Data
+as a second field, so it is rejected the same way.
+
 ```json
 {
   "content": [
