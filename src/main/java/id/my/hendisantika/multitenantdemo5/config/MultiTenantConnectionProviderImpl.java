@@ -9,6 +9,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.regex.Pattern;
 
 /**
  * Created by IntelliJ IDEA.
@@ -24,7 +25,10 @@ import java.sql.Statement;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MultiTenantConnectionProviderImpl extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl {
+public class MultiTenantConnectionProviderImpl extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
+
+    private static final String DEFAULT_TENANT = "public";
+    private static final Pattern VALID_TENANT = Pattern.compile("^[a-zA-Z0-9_]+$");
 
     private final DataSource dataSource;
 
@@ -34,26 +38,35 @@ public class MultiTenantConnectionProviderImpl extends AbstractDataSourceBasedMu
     }
 
     @Override
-    protected DataSource selectDataSource(Object tenantIdentifier) {
+    protected DataSource selectDataSource(String tenantIdentifier) {
         return dataSource;
     }
 
     @Override
-    public Connection getConnection(Object tenantIdentifier) throws SQLException {
-        String tenantId = tenantIdentifier != null ? tenantIdentifier.toString() : "public";
-        log.info("Acquiring connection for tenant {}", tenantId);
+    public Connection getConnection(String tenantIdentifier) throws SQLException {
+        String tenantId = tenantIdentifier != null ? tenantIdentifier : DEFAULT_TENANT;
+        // The tenant id ends up in a SET search_path statement, which cannot be
+        // parameterised, so it must be validated as a plain SQL identifier first.
+        if (!VALID_TENANT.matcher(tenantId).matches()) {
+            throw new SQLException("Invalid tenant identifier: " + tenantId);
+        }
+        log.debug("Acquiring connection for tenant {}", tenantId);
         Connection connection = getAnyConnection();
         try (Statement statement = connection.createStatement()) {
-            statement.execute(String.format("SET search_path TO %s;", tenantId));
+            statement.execute("SET search_path TO " + tenantId);
+        } catch (SQLException e) {
+            releaseAnyConnection(connection);
+            throw e;
         }
         return connection;
     }
 
     @Override
-    public void releaseConnection(Object tenantIdentifier, Connection connection) throws SQLException {
+    public void releaseConnection(String tenantIdentifier, Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
-            statement.execute("SET search_path TO public;");
+            statement.execute("SET search_path TO " + DEFAULT_TENANT);
+        } finally {
+            releaseAnyConnection(connection);
         }
-        releaseAnyConnection(connection);
     }
 }
