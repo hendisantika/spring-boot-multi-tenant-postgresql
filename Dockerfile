@@ -1,5 +1,5 @@
 # Build the jar with the project's own wrapper so the image matches a local build.
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:26-jdk-alpine AS build
 WORKDIR /workspace
 
 # Copy the build definition first: dependency resolution is then cached and only
@@ -11,7 +11,7 @@ RUN chmod +x gradlew && ./gradlew --no-daemon dependencies --quiet || true
 COPY src src
 RUN ./gradlew --no-daemon bootJar --quiet
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:26-jre-alpine AS runtime
 
 # Run unprivileged: nothing in this app needs root.
 RUN addgroup -S spring && adduser -S spring -G spring
