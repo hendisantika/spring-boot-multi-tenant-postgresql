@@ -4,10 +4,30 @@
 
 This document provides examples of how to interact with the Multitenant Demo API using cURL commands.
 
+## Tech Stack
+
+- Java 25 (Gradle toolchain, CI and the Docker image all target JDK 25)
+- Spring Boot 4.1.1
+- Gradle 9.8.1 (via the wrapper)
+- PostgreSQL + Flyway
+- Testcontainers 2.x for integration tests
+
 ## Prerequisites
 
+- JDK 25 to build and run the app (`./gradlew` picks it up through the toolchain)
+- Docker, both for the local database and for the Testcontainers-backed tests
 - The application should be running locally on port 8080
 - cURL should be installed on your system
+
+## Building and Testing
+
+```bash
+./gradlew build
+```
+
+This runs the full test suite, which starts a throwaway PostgreSQL container
+through Testcontainers, so Docker must be running. The same command runs in
+GitHub Actions on Temurin JDK 25 for every push and pull request to `main`.
 
 ## Tenant Management
 
